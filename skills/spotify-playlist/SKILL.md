@@ -1,6 +1,6 @@
 ---
 name: spotify-playlist
-description: "Use when the user wants to MANAGE their Spotify playlists: create a new one, list theirs, view one's metadata, rename, change description or visibility, add tracks, or remove tracks. Covers requests like 'add this song to my Outlaw Country Gothic playlist', 'create a new playlist called Late Night Drives', 'show me my playlists', 'rename X to Y', 'remove the last 5 tracks from Z'. Requires the spotify-mcp server (mcp__spotify__*)."
+description: "Use when the user wants to MANAGE their Spotify playlists: create a new one, list theirs, view its tracks, rename, change description or visibility, add tracks, remove tracks, reorder, or trim. Covers requests like 'add this song to my Outlaw Country Gothic playlist', 'create a new playlist called Late Night Drives', 'show me my playlists', 'rename X to Y', 'remove the last 5 tracks from Z', 'put the slow songs at the end of W'. Requires the spotify-mcp server (mcp__spotify__*)."
 allowed-tools:
   - mcp__spotify__*
 ---
@@ -30,7 +30,15 @@ You're modifying persistent, user-visible state. Confirm intent before destructi
 - The `limit` caps at 50. If the user clearly has more, raise the limit (max 50 per call) and note the cap.
 
 ### "What's in playlist Y?"
-- `mcp__spotify__get_playlist(playlist_id=...)` — returns name, description, total_tracks, owner. Track list contents are NOT in the DTO. To see actual tracks, you'd need to play it (`start_playback` with the playlist URI) or extend the tool — flag this limitation rather than fabricate.
+- `mcp__spotify__get_playlist(playlist_id=...)` — name, description, total_tracks, owner (no tracks).
+- `mcp__spotify__get_playlist_items(playlist_id=..., limit=100, offset=0)` — the tracks, in order, each with a 0-based `position`. Loop on `offset` while `has_more` is true. Render as `<position+1>. <name> — <artists> (<m:ss>)`.
+
+### "Reorder / trim playlist Y" (e.g. "move the Irish songs to the end", "cut it to 40 tracks")
+1. `get_playlist_items` — read the current order (paginate if > 100).
+2. Work out the target list of URIs.
+3. If the target is ≤ 100 tracks: `mcp__spotify__replace_playlist_items(playlist_id, uris=[...])` — ONE atomic PUT replaces the entire contents in that order. Show the user the before/after summary first; this is the one call that can wipe a playlist (an empty `uris` clears it).
+4. If the target is > 100 tracks or the change is a single block move: `mcp__spotify__reorder_playlist_items(playlist_id, range_start, insert_before, range_length)` — moves `range_length` items starting at `range_start` to sit before `insert_before` (both 0-based, positions as they are BEFORE the move). Pass the `snapshot_id` from a preceding call if you're doing several moves in a row.
+5. Re-read with `get_playlist_items` and confirm the new order to the user.
 
 ### "Remove track X from playlist Y"
 1. Find Y's id via `list_my_playlists`.

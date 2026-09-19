@@ -25,6 +25,9 @@ EXPECTED_TOOL_NAMES = {
     "remove_tracks_from_playlist",
     "list_my_playlists",
     "change_playlist_details",
+    "get_playlist_items",
+    "replace_playlist_items",
+    "reorder_playlist_items",
     "get_current_playback",
     "start_playback",
     "pause_playback",
@@ -39,9 +42,9 @@ EXPECTED_TOOL_NAMES = {
 }
 
 
-async def test_server_lists_all_24_tools() -> None:
+async def test_server_lists_all_27_tools() -> None:
     tools = await handle_list_tools()
-    assert len(tools) == 24
+    assert len(tools) == 27
     assert {t.name for t in tools} == EXPECTED_TOOL_NAMES
     # Every tool must have a non-empty description and an inputSchema.
     for t in tools:

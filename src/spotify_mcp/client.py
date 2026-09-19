@@ -187,6 +187,55 @@ class SpotifyClient:
             json={"tracks": [{"uri": u} for u in uris]},
         )
 
+    async def get_playlist_items(
+        self, playlist_id: str, *, limit: int = 100, offset: int = 0
+    ) -> dict[str, Any]:
+        # GET /v1/playlists/{id}/items — Feb-2026 endpoint. Paginated; caller
+        # walks `offset` until `next` is null. Fields trimmed to what the DTO needs.
+        return await self._request(
+            "GET",
+            f"/playlists/{playlist_id}/items",
+            params={
+                "limit": limit,
+                "offset": offset,
+                "fields": (
+                    "total,next,items(item(id,name,uri,duration_ms,"
+                    "artists(name),album(name)))"
+                ),
+            },
+        )
+
+    async def replace_playlist_items(
+        self, playlist_id: str, uris: list[str]
+    ) -> dict[str, Any]:
+        # PUT /v1/playlists/{id}/items with `uris` replaces the ENTIRE playlist
+        # contents in one atomic call (max 100 URIs). Empty list clears it.
+        if len(uris) > 100:
+            raise ValueError(f"replace_playlist_items: max 100 uris per call, got {len(uris)}")
+        return await self._request(
+            "PUT", f"/playlists/{playlist_id}/items", json={"uris": uris}
+        )
+
+    async def reorder_playlist_items(
+        self,
+        playlist_id: str,
+        *,
+        range_start: int,
+        insert_before: int,
+        range_length: int = 1,
+        snapshot_id: str | None = None,
+    ) -> dict[str, Any]:
+        # Same PUT endpoint, different body shape: range_start/insert_before move
+        # a contiguous block. snapshot_id guards against concurrent edits.
+        body: dict[str, Any] = {
+            "range_start": range_start,
+            "insert_before": insert_before,
+            "range_length": range_length,
+        }
+        if snapshot_id is not None:
+            body["snapshot_id"] = snapshot_id
+        return await self._request("PUT", f"/playlists/{playlist_id}/items", json=body)
+
     async def change_playlist_details(
         self,
         playlist_id: str,

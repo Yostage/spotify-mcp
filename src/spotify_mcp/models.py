@@ -1,4 +1,4 @@
-"""Pydantic schemas: 23 MCP tool inputs + 5 lightweight response DTOs.
+"""Pydantic schemas: 27 MCP tool inputs + 5 lightweight response DTOs.
 
 DTOs surface only what an LLM needs — no pagination cursors, no HATEOAS noise,
 no external_urls dictionaries seven levels deep.
@@ -18,7 +18,7 @@ class _Input(BaseModel):
 
 
 # ============================================================
-# Tool input schemas (23 — one per MCP tool)
+# Tool input schemas (27 — one per MCP tool)
 # ============================================================
 
 
@@ -78,6 +78,28 @@ class RemoveTracksFromPlaylistInput(_Input):
 
 class ListMyPlaylistsInput(_Input):
     limit: int = Field(default=50, ge=1, le=50)
+
+
+class GetPlaylistItemsInput(_Input):
+    playlist_id: str
+    limit: int = Field(default=100, ge=1, le=100)
+    offset: int = Field(default=0, ge=0)
+
+
+class ReplacePlaylistItemsInput(_Input):
+    # Spotify accepts up to 100 URIs per PUT. Pass an empty list to clear the playlist.
+    playlist_id: str
+    uris: list[str] = Field(max_length=100)
+
+
+class ReorderPlaylistItemsInput(_Input):
+    # Moves `range_length` items starting at `range_start` so they sit before the
+    # item currently at `insert_before`. Positions are 0-based.
+    playlist_id: str
+    range_start: int = Field(ge=0)
+    insert_before: int = Field(ge=0)
+    range_length: int = Field(default=1, ge=1)
+    snapshot_id: str | None = None
 
 
 class ChangePlaylistDetailsInput(_Input):
@@ -268,6 +290,9 @@ TOOL_INPUTS: dict[str, type[_Input]] = {
     "remove_tracks_from_playlist": RemoveTracksFromPlaylistInput,
     "list_my_playlists": ListMyPlaylistsInput,
     "change_playlist_details": ChangePlaylistDetailsInput,
+    "get_playlist_items": GetPlaylistItemsInput,
+    "replace_playlist_items": ReplacePlaylistItemsInput,
+    "reorder_playlist_items": ReorderPlaylistItemsInput,
     "get_current_playback": GetCurrentPlaybackInput,
     "start_playback": StartPlaybackInput,
     "pause_playback": PausePlaybackInput,

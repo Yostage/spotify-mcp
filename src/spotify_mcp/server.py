@@ -30,7 +30,7 @@ ClientProvider = Callable[[], SpotifyClient]
 
 
 async def handle_list_tools() -> list[types.Tool]:
-    """Return the 23 MCP tool descriptors with their pydantic-derived schemas."""
+    """Return the 27 MCP tool descriptors with their pydantic-derived schemas."""
     return [
         types.Tool(
             name=name,

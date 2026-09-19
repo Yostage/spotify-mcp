@@ -1,4 +1,4 @@
-"""23 MCP tool implementations — pure functions over SpotifyClient.
+"""27 MCP tool implementations — pure functions over SpotifyClient.
 
 Each tool takes a validated pydantic input model and returns a list of
 mcp.types.TextContent. Validation and exception-to-error-envelope translation
@@ -27,6 +27,7 @@ from spotify_mcp.models import (
     GetArtistInput,
     GetCurrentPlaybackInput,
     GetPlaylistInput,
+    GetPlaylistItemsInput,
     GetQueueInput,
     GetTrackInput,
     ListDevicesInput,
@@ -36,6 +37,8 @@ from spotify_mcp.models import (
     Playlist,
     PreviousTrackInput,
     RemoveTracksFromPlaylistInput,
+    ReorderPlaylistItemsInput,
+    ReplacePlaylistItemsInput,
     SaveTracksToLibraryInput,
     SearchAlbumsInput,
     SearchArtistsInput,
@@ -138,7 +141,7 @@ async def get_playlist(
 
 
 # ============================================================
-# Playlist (5) — Feb-2026 endpoints (/me/playlists, /playlists/{id}/items)
+# Playlist (8) — Feb-2026 endpoints (/me/playlists, /playlists/{id}/items)
 # ============================================================
 
 
@@ -183,6 +186,60 @@ async def change_playlist_details(
         public=inp.public,
     )
     return _text({"playlist_id": inp.playlist_id, "updated": True})
+
+
+async def get_playlist_items(
+    client: SpotifyClient, inp: GetPlaylistItemsInput
+) -> list[types.TextContent]:
+    raw = await client.get_playlist_items(
+        inp.playlist_id, limit=inp.limit, offset=inp.offset
+    )
+    items: list[dict[str, Any]] = raw.get("items") or []
+    tracks: list[dict[str, Any]] = []
+    for pos, it in enumerate(items, start=inp.offset):
+        # Feb-2026 /items wraps each row as {"item": {...}} (not "track").
+        t: dict[str, Any] = it.get("item") or {}
+        if not t.get("id"):
+            continue  # local files / unavailable tracks have no id
+        d = Track.from_spotify(t).model_dump()
+        d["position"] = pos
+        tracks.append(d)
+    return _text(
+        {
+            "playlist_id": inp.playlist_id,
+            "total": raw.get("total"),
+            "offset": inp.offset,
+            "has_more": bool(raw.get("next")),
+            "items": tracks,
+        }
+    )
+
+
+async def replace_playlist_items(
+    client: SpotifyClient, inp: ReplacePlaylistItemsInput
+) -> list[types.TextContent]:
+    raw = await client.replace_playlist_items(inp.playlist_id, inp.uris)
+    return _text({"snapshot_id": raw.get("snapshot_id"), "count": len(inp.uris)})
+
+
+async def reorder_playlist_items(
+    client: SpotifyClient, inp: ReorderPlaylistItemsInput
+) -> list[types.TextContent]:
+    raw = await client.reorder_playlist_items(
+        inp.playlist_id,
+        range_start=inp.range_start,
+        insert_before=inp.insert_before,
+        range_length=inp.range_length,
+        snapshot_id=inp.snapshot_id,
+    )
+    return _text(
+        {
+            "snapshot_id": raw.get("snapshot_id"),
+            "moved": inp.range_length,
+            "from": inp.range_start,
+            "insert_before": inp.insert_before,
+        }
+    )
 
 
 # ============================================================
@@ -312,6 +369,9 @@ TOOLS: dict[str, tuple[type[BaseModel], ToolHandler]] = {
     ),
     "list_my_playlists": (ListMyPlaylistsInput, list_my_playlists),
     "change_playlist_details": (ChangePlaylistDetailsInput, change_playlist_details),
+    "get_playlist_items": (GetPlaylistItemsInput, get_playlist_items),
+    "replace_playlist_items": (ReplacePlaylistItemsInput, replace_playlist_items),
+    "reorder_playlist_items": (ReorderPlaylistItemsInput, reorder_playlist_items),
     "get_current_playback": (GetCurrentPlaybackInput, get_current_playback),
     "start_playback": (StartPlaybackInput, start_playback),
     "pause_playback": (PausePlaybackInput, pause_playback),
@@ -340,6 +400,14 @@ TOOL_DESCRIPTIONS: dict[str, str] = {
     "remove_tracks_from_playlist": "Remove track URIs from a playlist (Feb-2026 /items endpoint).",
     "list_my_playlists": "List the authenticated user's playlists.",
     "change_playlist_details": "Update a playlist's name, description, or public flag.",
+    "get_playlist_items": "List a playlist's tracks in order with 0-based positions. "
+    "Paginated (limit<=100, offset); loop while has_more.",
+    "replace_playlist_items": "Replace the ENTIRE playlist contents with the given track URIs, "
+    "in that order, in one atomic call (max 100 URIs; empty list clears). "
+    "Use this to reorder or trim a playlist deterministically.",
+    "reorder_playlist_items": "Move a contiguous block of items: range_length items starting at "
+    "range_start are placed before insert_before (0-based positions). "
+    "Pass snapshot_id from get_playlist to guard against concurrent edits.",
     "get_current_playback": "Get the user's currently-playing track and playback state.",
     "start_playback": "Start or resume playback. Pass a track URI for a single track, "
     "or an album/playlist/artist URI for a context.",

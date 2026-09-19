@@ -1,6 +1,6 @@
 # spotify-mcp
 
-An MCP server for Spotify — **24 flat tools**, **OAuth 2.0 PKCE** (no `client_secret`), OS-keychain token storage, targeting the **post-February-2026 Spotify Web API surface**.
+An MCP server for Spotify — **27 flat tools**, **OAuth 2.0 PKCE** (no `client_secret`), OS-keychain token storage, targeting the **post-February-2026 Spotify Web API surface**.
 
 Built with `httpx` + `mcp` + `pydantic` + `keyring`. No `spotipy`. No `.cache` files in your CWD.
 
@@ -10,7 +10,7 @@ Built with `httpx` + `mcp` + `pydantic` + `keyring`. No `spotipy`. No `.cache` f
 
 ## Features
 
-- **23 flat MCP tools** — one verb per tool (`search_tracks`, `start_playback`, `add_to_queue`, ...). No action-dispatched mega-tools.
+- **27 flat MCP tools** — one verb per tool (`search_tracks`, `start_playback`, `add_to_queue`, ...). No action-dispatched mega-tools.
 - **OAuth 2.0 Authorization Code + PKCE** (RFC 7636). No `client_secret` needed — public clients shouldn't ship secrets.
 - **Refresh tokens in the OS keychain** via `keyring`. No plaintext on disk, no `.cache` files next to the script.
 - **Auto-refresh on 401**, single retry. **Single retry on 429** honoring `Retry-After`. Never an unbounded loop.
@@ -109,13 +109,13 @@ The auth flow requests these scopes on the consent screen:
 
 `user-library-modify` is **not** requested — out of scope for v1.
 
-## Available Tools (23)
+## Available Tools (27)
 
 **Search (4):** `search_tracks`, `search_albums`, `search_artists`, `search_playlists`
 
 **Get info (4):** `get_track`, `get_album`, `get_artist` *(also returns the artist's albums; top-tracks endpoint removed Feb-2026)*, `get_playlist`
 
-**Playlist (5):** `create_playlist` *(defaults to `public=false`)*, `add_tracks_to_playlist`, `remove_tracks_from_playlist`, `list_my_playlists`, `change_playlist_details`
+**Playlist (8):** `create_playlist` *(defaults to `public=false`)*, `add_tracks_to_playlist`, `remove_tracks_from_playlist`, `list_my_playlists`, `change_playlist_details`, `get_playlist_items` *(ordered, paginated, 0-based positions)*, `replace_playlist_items` *(atomic reorder/trim: PUT the full URI list, max 100)*, `reorder_playlist_items` *(move a contiguous block; optional `snapshot_id` guard)*
 
 **Playback (10):** `get_current_playback`, `start_playback` *(routes track URIs to `uris`, album/playlist/artist URIs to `context_uri`)*, `pause_playback`, `next_track`, `previous_track`, `seek`, `set_volume`, `list_devices`, `add_to_queue`, `get_queue`
 
