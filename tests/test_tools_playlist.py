@@ -15,6 +15,7 @@ from spotify_mcp.models import (
     AddTracksToPlaylistInput,
     CreatePlaylistInput,
     GetPlaylistItemsInput,
+    RemoveTracksFromPlaylistInput,
     ReorderPlaylistItemsInput,
     ReplacePlaylistItemsInput,
 )
@@ -23,6 +24,7 @@ from spotify_mcp.tools import (
     add_tracks_to_playlist,
     create_playlist,
     get_playlist_items,
+    remove_tracks_from_playlist,
     reorder_playlist_items,
     replace_playlist_items,
 )
@@ -180,3 +182,20 @@ async def test_get_playlist_items_returns_positions_and_has_more(client: Spotify
     assert payload["has_more"] is True
     assert [i["position"] for i in payload["items"]] == [0]  # id-less item skipped
     assert payload["items"][0]["uri"] == "spotify:track:A"
+
+
+@respx.mock
+async def test_remove_tracks_from_playlist_uses_items_body_key(client: SpotifyClient) -> None:
+    """Feb-2026: DELETE /v1/playlists/{id}/items takes {"items": [{"uri": ...}]}, not "tracks"."""
+    route = respx.delete("https://api.spotify.com/v1/playlists/P/items").mock(
+        return_value=httpx.Response(200, json={"snapshot_id": "snap_rm"}),
+    )
+
+    await remove_tracks_from_playlist(
+        client,
+        RemoveTracksFromPlaylistInput(playlist_id="P", uris=["spotify:track:T"]),
+    )
+
+    call = route.calls.last
+    assert call.request.url.path == "/v1/playlists/P/items"
+    assert call.request.content.decode("utf-8") == '{"items":[{"uri":"spotify:track:T"}]}'

@@ -180,11 +180,13 @@ class SpotifyClient:
     async def remove_tracks_from_playlist(
         self, playlist_id: str, uris: list[str]
     ) -> dict[str, Any]:
-        # DELETE /v1/playlists/{id}/items — Feb-2026 endpoint.
+        # DELETE /v1/playlists/{id}/items — Feb-2026 endpoint. The body key is
+        # "items" (the legacy /tracks endpoint took "tracks"); with "tracks" the
+        # API answers 400 {"message": "No uris provided"}.
         return await self._request(
             "DELETE",
             f"/playlists/{playlist_id}/items",
-            json={"tracks": [{"uri": u} for u in uris]},
+            json={"items": [{"uri": u} for u in uris]},
         )
 
     async def get_playlist_items(
