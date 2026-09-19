@@ -22,24 +22,26 @@ class _Input(BaseModel):
 # ============================================================
 
 
+# Spotify now rejects /search with limit > 10 (400 "Invalid limit"); observed
+# 2026-09 against a development-mode app. Cap the schema so the LLM can't ask.
 class SearchTracksInput(_Input):
     query: str
-    limit: int = Field(default=10, ge=1, le=50)
+    limit: int = Field(default=10, ge=1, le=10)
 
 
 class SearchAlbumsInput(_Input):
     query: str
-    limit: int = Field(default=10, ge=1, le=50)
+    limit: int = Field(default=10, ge=1, le=10)
 
 
 class SearchArtistsInput(_Input):
     query: str
-    limit: int = Field(default=10, ge=1, le=50)
+    limit: int = Field(default=10, ge=1, le=10)
 
 
 class SearchPlaylistsInput(_Input):
     query: str
-    limit: int = Field(default=10, ge=1, le=50)
+    limit: int = Field(default=10, ge=1, le=10)
 
 
 class GetTrackInput(_Input):
