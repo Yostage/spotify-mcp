@@ -10,9 +10,17 @@ import respx
 
 from spotify_mcp.auth import PKCEFlow
 from spotify_mcp.client import SpotifyClient
-from spotify_mcp.models import AddTracksToPlaylistInput, CreatePlaylistInput
+from spotify_mcp.models import (
+    AddTracksToPlaylistInput,
+    CreatePlaylistInput,
+    RemoveTracksFromPlaylistInput,
+)
 from spotify_mcp.storage import Storage
-from spotify_mcp.tools import add_tracks_to_playlist, create_playlist
+from spotify_mcp.tools import (
+    add_tracks_to_playlist,
+    create_playlist,
+    remove_tracks_from_playlist,
+)
 
 
 @pytest.fixture
@@ -73,3 +81,20 @@ async def test_add_tracks_to_playlist_uses_items_endpoint(client: SpotifyClient)
     assert not call.request.url.path.endswith("/tracks")
     body = call.request.content.decode("utf-8")
     assert '"uris":["spotify:track:T"]' in body
+
+
+@respx.mock
+async def test_remove_tracks_from_playlist_uses_items_body_key(client: SpotifyClient) -> None:
+    """Feb-2026: DELETE /v1/playlists/{id}/items takes {"items": [{"uri": ...}]}, not "tracks"."""
+    route = respx.delete("https://api.spotify.com/v1/playlists/P/items").mock(
+        return_value=httpx.Response(200, json={"snapshot_id": "snap_rm"}),
+    )
+
+    await remove_tracks_from_playlist(
+        client,
+        RemoveTracksFromPlaylistInput(playlist_id="P", uris=["spotify:track:T"]),
+    )
+
+    call = route.calls.last
+    assert call.request.url.path == "/v1/playlists/P/items"
+    assert call.request.content.decode("utf-8") == '{"items":[{"uri":"spotify:track:T"}]}'
