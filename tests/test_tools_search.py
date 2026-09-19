@@ -57,3 +57,20 @@ async def test_search_tracks_returns_minimal_dtos(client: SpotifyClient) -> None
     assert "available_markets" not in first
     assert "popularity" not in first
     assert "images" not in first
+
+
+def test_search_limit_capped_at_10() -> None:
+    """Spotify /search rejects limit > 10 with 400 "Invalid limit" — keep the schema in step."""
+    from pydantic import ValidationError
+
+    from spotify_mcp.models import (
+        SearchAlbumsInput,
+        SearchArtistsInput,
+        SearchPlaylistsInput,
+        SearchTracksInput,
+    )
+
+    for cls in (SearchTracksInput, SearchAlbumsInput, SearchArtistsInput, SearchPlaylistsInput):
+        assert cls(query="q", limit=10).limit == 10
+        with pytest.raises(ValidationError):
+            cls(query="q", limit=11)

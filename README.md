@@ -111,7 +111,7 @@ The auth flow requests these scopes on the consent screen:
 
 ## Available Tools (27)
 
-**Search (4):** `search_tracks`, `search_albums`, `search_artists`, `search_playlists`
+**Search (4):** `search_tracks`, `search_albums`, `search_artists`, `search_playlists` *(`limit` max 10 — the API returns 400 `Invalid limit` above that)*
 
 **Get info (4):** `get_track`, `get_album`, `get_artist` *(also returns the artist's albums; top-tracks endpoint removed Feb-2026)*, `get_playlist`
 
